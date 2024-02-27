@@ -69,7 +69,7 @@ class ResNet(nn.Module):
         # TODO: Please complete the downsample module
         # Hint: Use a "kernel_size=1"'s convolution layer to align the dimension
         #####################################################################
-        downsample = nn.Sequential()
+        downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
                 nn.Conv2d(self.inplanes, planes * block.expansion,
