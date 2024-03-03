@@ -15,6 +15,8 @@ from retinanet.eval import Evaluation
     
 from torch.utils.data import DataLoader
 
+from torch.utils.tensorboard import SummaryWriter
+
 def main(args=None):
     parser = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
     parser.add_argument('--coco_path', help='Path to COCO directory', default='./data')
@@ -25,6 +27,7 @@ def main(args=None):
     parser = parser.parse_args(args)
 
 
+    writer = SummaryWriter()
     if not os.path.exists(parser.output_path):
         os.mkdir(parser.output_path)
 
@@ -36,7 +39,7 @@ def main(args=None):
     dataset_val = CocoDataset(parser.coco_path, set_name='val',
                                 transform=transforms.Compose([Normalizer(), Resizer()]))
 
-    sampler = AspectRatioBasedSampler(dataset_train, batch_size=2, drop_last=False)
+    sampler = AspectRatioBasedSampler(dataset_train, batch_size=3, drop_last=False)
     dataloader_train = DataLoader(dataset_train, num_workers=2, collate_fn=collater, batch_sampler=sampler)
 
     # Create the model
@@ -54,7 +57,7 @@ def main(args=None):
             retinanet = retinanet.cuda()
 
     retinanet.training = True
-    optimizer = optim.Adam(retinanet.parameters(), lr=1e-4)
+    optimizer = optim.Adam(retinanet.parameters(), lr=1e-5)
 
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[48, 64])
 
@@ -123,7 +126,9 @@ def main(args=None):
         scheduler.step()
 
         epoch_loss_list.append(np.mean(epoch_loss))
-
+        
+        writer.add_scalar("Loss/train",float(np.mean(epoch_loss)),epoch_num)
+        writer.flush()
         if (epoch_num + 1) % 10 == 0 or epoch_num + 1 == parser.epochs:
             print('Evaluating dataset')
             retinanet.eval()
@@ -132,7 +137,7 @@ def main(args=None):
             eval.evaluate(dataset_val, retinanet)
 
             torch.save(retinanet, os.path.join(parser.output_path, 'retinanet_epoch{}.pt'.format(epoch_num + 1)))
-
+    
     print(epoch_loss_list)
     torch.save(retinanet, os.path.join(parser.output_path, 'model_final.pt'))
 
